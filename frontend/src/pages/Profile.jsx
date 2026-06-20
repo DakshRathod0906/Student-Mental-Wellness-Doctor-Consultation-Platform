@@ -3,289 +3,100 @@ import API from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 
 const Profile = () => {
-  const { user, refreshUser } = useContext(AuthContext);
-  
-  // Basic profile settings (All users)
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const { user } = useContext(AuthContext);
 
-  // Profile settings (Doctors only)
-  const [specialization, setSpecialization] = useState('');
-  const [experience, setExperience] = useState(0);
-  const [fee, setFee] = useState(0);
-  const [image, setImage] = useState('');
-  const [qualification, setQualification] = useState('');
-  const [bio, setBio] = useState('');
-
-  // Password update settings (All roles)
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  useEffect(() => {
-    if (user) {
-      setFirstName(user.firstName || '');
-      setLastName(user.lastName || '');
-      setPhoneNumber(user.phoneNumber || '');
-      
-      if (user.role === 'doctor' && user.doctorProfile) {
-        setSpecialization(user.doctorProfile.specialization || '');
-        setExperience(user.doctorProfile.experience || 0);
-        setFee(user.doctorProfile.fee || 0);
-        setImage(user.doctorProfile.image || '');
-        setQualification(user.doctorProfile.qualification || '');
-        setBio(user.doctorProfile.bio || '');
-      }
-    }
-  }, [user]);
-
-  const handleUpdateBasicInfo = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    try {
-      await API.put('/auth/profile', {
-        firstName,
-        lastName,
-        phoneNumber
-      });
-      setSuccess('Profile details updated successfully!');
-      if (refreshUser) await refreshUser();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update profile details');
-    }
+  // Student specific details
+  const studentDetails = {
+    university: 'ABC State University',
+    department: 'Computer Science & Engineering',
+    year: '3rd Year (Junior)',
+    id: 'CS-2026-0942'
   };
 
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    try {
-      await API.put('/doctors/profile', {
-        specialization,
-        experience,
-        fee,
-        image,
-        qualification,
-        bio
-      });
-      setSuccess('Consultant profile updated successfully!');
-      if (refreshUser) await refreshUser();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update profile');
-    }
-  };
-
-  const handleUpdatePassword = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    try {
-      await API.put('/auth/password', { currentPassword, newPassword });
-      setSuccess('Password updated successfully!');
-      setCurrentPassword('');
-      setNewPassword('');
-      if (refreshUser) await refreshUser();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update password');
-    }
-  };
+  const badges = [
+    { title: '🌱 First Journal', unlocked: true, desc: 'Logged your very first daily entry.' },
+    { title: '✍️ 10 Journal Entries', unlocked: true, desc: 'Consistently logged 10 journals.' },
+    { title: '🔬 First Assessment', unlocked: true, desc: 'Completed your first clinical screener.' },
+    { title: '🏆 5 Assessments', unlocked: false, desc: 'Complete 5 self-assessments.' },
+    { title: '📅 First Booking', unlocked: true, desc: 'Scheduled your first consultation.' },
+    { title: '🤝 5 Consultations', unlocked: false, desc: 'Complete 5 clinical consultations.' }
+  ];
 
   return (
-    <div style={{ color: '#ffffff' }}>
-      {error && (
-        <div style={{ color: '#f87171', backgroundColor: 'rgba(239,68,68,0.1)', padding: '12px', borderRadius: '6px', marginBottom: '24px' }}>
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div style={{ color: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', padding: '12px', borderRadius: '6px', marginBottom: '24px' }}>
-          {success}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
-        {/* Profile Card & Password Config */}
-        <div style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Editable details */}
-          <div style={{ backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px' }}>Personal Information</h3>
-            <form onSubmit={handleUpdateBasicInfo} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>First Name</label>
-                <input 
-                  type="text" 
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>Last Name</label>
-                <input 
-                  type="text" 
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>Phone Number</label>
-                <input 
-                  type="text" 
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>Email Address (Cannot change)</label>
-                <input 
-                  type="email" 
-                  value={user?.email || ''}
-                  disabled
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#94a3b8', cursor: 'not-allowed', outline: 'none' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>Account Type</label>
-                <div style={{ textTransform: 'capitalize', color: '#60a5fa', fontWeight: 600, padding: '4px 0' }}>{user?.role}</div>
-              </div>
-              <button type="submit" style={{ backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '10px 16px', fontWeight: 600, cursor: 'pointer' }}>
-                Save Profile Details
-              </button>
-            </form>
-          </div>
-
-          {/* Password update form */}
-          <div style={{ backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px' }}>Change Password</h3>
-            <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>Current Password</label>
-                <input 
-                  type="password" 
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>New Password</label>
-                <input 
-                  type="password" 
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-                />
-              </div>
-              <button type="submit" style={{ backgroundColor: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '10px 16px', fontWeight: 600, cursor: 'pointer' }}>
-                Update Password
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* Doctor profile update (Doctors only) */}
-        {user?.role === 'doctor' && (
-          <div style={{
-            flex: 2,
-            minWidth: '320px',
-            backgroundColor: '#1e293b',
-            padding: '24px',
-            borderRadius: '12px',
-            border: '1px solid #334155'
-          }}>
-            <h3 style={{ margin: '0 0 4px 0', fontSize: '18px' }}>Consultant Profile Info</h3>
-            <p style={{ color: '#94a3b8', fontSize: '13px', margin: '0 0 20px 0' }}>Completing these fields allows you to appear in the student directory.</p>
-            
-            <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>Specialization</label>
-                  <input 
-                    type="text" 
-                    value={specialization} 
-                    onChange={(e) => setSpecialization(e.target.value)} 
-                    placeholder="Psychiatrist, Counselor"
-                    required
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>Experience (Years)</label>
-                  <input 
-                    type="number" 
-                    value={experience} 
-                    onChange={(e) => setExperience(e.target.value)} 
-                    required
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>Consultation Fee ($)</label>
-                  <input 
-                    type="number" 
-                    value={fee} 
-                    onChange={(e) => setFee(e.target.value)} 
-                    required
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>Profile Image (URL)</label>
-                  <input 
-                    type="text" 
-                    value={image} 
-                    onChange={(e) => setImage(e.target.value)} 
-                    placeholder="https://example.com/avatar.jpg"
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>Qualifications</label>
-                <input 
-                  type="text" 
-                  value={qualification} 
-                  onChange={(e) => setQualification(e.target.value)} 
-                  placeholder="MBBS, MD in Psychiatry"
-                  required
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>Brief Bio / About Yourself</label>
-                <textarea 
-                  value={bio} 
-                  onChange={(e) => setBio(e.target.value)} 
-                  rows="4"
-                  required
-                  style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#ffffff', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
-                />
-              </div>
-
-              <button type="submit" style={{ backgroundColor: '#10b981', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                Save Profile
-              </button>
-            </form>
-          </div>
-        )}
+    <div style={{ padding: '32px', color: '#0f172a', maxWidth: '1000px', margin: '0 auto' }}>
+      
+      {/* Global Header */}
+      <div style={{ marginBottom: '32px', borderBottom: '1px solid #e2e8f0', paddingBottom: '20px' }}>
+        <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, color: '#f8fafc' }}>
+          User Profile Information 👤
+        </h1>
+        <p style={{ color: '#94a3b8', margin: '4px 0 0 0', fontSize: '15px' }}>
+          Verify your student credentials and view your unlocked milestone achievements.
+        </p>
       </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+        
+        {/* Profile details */}
+        <div className="bento-card">
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '17px', fontWeight: 700 }}>Personal Information</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '14px' }}>
+            <div><span style={{ color: '#64748b' }}>Name:</span> <strong>{user?.firstName} {user?.lastName}</strong></div>
+            <div><span style={{ color: '#64748b' }}>Email:</span> <strong>{user?.email}</strong></div>
+            <div><span style={{ color: '#64748b' }}>Role:</span> <strong style={{ textTransform: 'capitalize' }}>{user?.role}</strong></div>
+            
+            {user?.role === 'student' && (
+              <>
+                <div style={{ width: '100%', height: '1px', backgroundColor: '#e2e8f0', margin: '8px 0' }} />
+                <div><span style={{ color: '#64748b' }}>University:</span> <strong>{studentDetails.university}</strong></div>
+                <div><span style={{ color: '#64748b' }}>Department:</span> <strong>{studentDetails.department}</strong></div>
+                <div><span style={{ color: '#64748b' }}>Academic Year:</span> <strong>{studentDetails.year}</strong></div>
+                <div><span style={{ color: '#64748b' }}>Student ID:</span> <strong>{studentDetails.id}</strong></div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Achievements list */}
+        <div className="bento-card theme-doctornotes">
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '17px', fontWeight: 700 }}>Achievements & Badges</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+            {badges.map((badge, idx) => (
+              <div 
+                key={idx} 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px', 
+                  padding: '12px', 
+                  borderRadius: '12px', 
+                  border: '1px solid #cbd5e1', 
+                  backgroundColor: badge.unlocked ? '#ffffff' : '#f1f5f9',
+                  opacity: badge.unlocked ? 1 : 0.5
+                }}
+              >
+                <div style={{ fontSize: '24px' }}>{badge.unlocked ? badge.title.split(' ')[0] : '🔒'}</div>
+                <div>
+                  <strong style={{ fontSize: '13px', display: 'block' }}>{badge.title.split(' ').slice(1).join(' ')}</strong>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>{badge.desc}</span>
+                </div>
+                <div style={{ marginLeft: 'auto' }}>
+                  <span style={{
+                    fontSize: '10px',
+                    padding: '2px 8px',
+                    borderRadius: '9999px',
+                    fontWeight: 700,
+                    backgroundColor: badge.unlocked ? '#dcfce7' : '#e2e8f0',
+                    color: badge.unlocked ? '#15803d' : '#475569'
+                  }}>{badge.unlocked ? 'UNLOCKED' : 'LOCKED'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+
     </div>
   );
 };

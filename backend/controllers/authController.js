@@ -176,11 +176,24 @@ const updateProfile = async (req, res) => {
   }
 };
 
+// @desc    Get all users (Admin only)
+// @route   GET /api/auth/users
+// @access  Private (Admin)
+const getUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('-passwordHash').sort({ createdAt: -1 });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
   getMe,
   getDoctors,
   updatePassword,
-  updateProfile
+  updateProfile,
+  getUsers
 };

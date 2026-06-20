@@ -27,6 +27,7 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/doctors', require('./routes/doctorRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes'));
+app.use('/api/doctor-notes', require('./routes/doctorNoteRoutes'));
 
 // Root Status check endpoint
 app.get('/api/health', (req, res) => {

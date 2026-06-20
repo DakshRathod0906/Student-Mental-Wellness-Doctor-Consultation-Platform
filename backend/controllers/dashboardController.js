@@ -15,6 +15,8 @@ const getStudentDashboard = async (req, res) => {
     
     const latestPHQ9 = await Assessment.findOne({ userId, type: 'PHQ9' }).sort({ createdAt: -1 });
     const latestGAD7 = await Assessment.findOne({ userId, type: 'GAD7' }).sort({ createdAt: -1 });
+    const latestPSS10 = await Assessment.findOne({ userId, type: 'PSS10' }).sort({ createdAt: -1 });
+    const latestWHO5 = await Assessment.findOne({ userId, type: 'WHO5' }).sort({ createdAt: -1 });
 
     const upcomingAppointments = await Appointment.countDocuments({
       studentId: userId,
@@ -22,19 +24,49 @@ const getStudentDashboard = async (req, res) => {
       scheduledDate: { $gte: new Date().setHours(0, 0, 0, 0) }
     });
 
-    // Fetch last 6 PHQ9 & GAD7 assessments sorted chronologically for trends chart
-    const rawPhqTrend = await Assessment.find({ userId, type: 'PHQ9' })
-      .sort({ createdAt: -1 })
-      .limit(6);
+    // Wellness Index Calculation (0-100)
+    // PHQ-9 (30%), GAD-7 (30%), PSS-10 (20%), WHO-5 (20%)
+    const phqVal = latestPHQ9 ? latestPHQ9.score : 5; // default moderate-low if not taken
+    const gadVal = latestGAD7 ? latestGAD7.score : 4;
+    const pssVal = latestPSS10 ? latestPSS10.score : 12;
+    const whoVal = latestWHO5 ? latestWHO5.score : 18;
+
+    const phqNorm = ((27 - phqVal) / 27) * 100;
+    const gadNorm = ((21 - gadVal) / 21) * 100;
+    const pssNorm = ((40 - pssVal) / 40) * 100;
+    const whoNorm = (whoVal / 25) * 100;
+
+    const wellnessIndex = Math.round((phqNorm * 0.3) + (gadNorm * 0.3) + (pssNorm * 0.2) + (whoNorm * 0.2));
+
+    // Determine category
+    let indexCategory = 'Moderate';
+    if (wellnessIndex >= 80) indexCategory = 'Excellent';
+    else if (wellnessIndex >= 60) indexCategory = 'Good';
+    else if (wellnessIndex >= 40) indexCategory = 'Moderate';
+    else if (wellnessIndex >= 20) indexCategory = 'Concerning';
+    else indexCategory = 'Critical';
+
+    // Fetch trend entries
+    const rawPhqTrend = await Assessment.find({ userId, type: 'PHQ9' }).sort({ createdAt: -1 }).limit(6);
     const phqTrend = rawPhqTrend.reverse().map(item => ({
       date: new Date(item.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
       score: item.score
     }));
 
-    const rawGadTrend = await Assessment.find({ userId, type: 'GAD7' })
-      .sort({ createdAt: -1 })
-      .limit(6);
+    const rawGadTrend = await Assessment.find({ userId, type: 'GAD7' }).sort({ createdAt: -1 }).limit(6);
     const gadTrend = rawGadTrend.reverse().map(item => ({
+      date: new Date(item.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      score: item.score
+    }));
+
+    const rawPssTrend = await Assessment.find({ userId, type: 'PSS10' }).sort({ createdAt: -1 }).limit(6);
+    const pssTrend = rawPssTrend.reverse().map(item => ({
+      date: new Date(item.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      score: item.score
+    }));
+
+    const rawWhoTrend = await Assessment.find({ userId, type: 'WHO5' }).sort({ createdAt: -1 }).limit(6);
+    const whoTrend = rawWhoTrend.reverse().map(item => ({
       date: new Date(item.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
       score: item.score
     }));
@@ -42,15 +74,23 @@ const getStudentDashboard = async (req, res) => {
     res.json({
       cards: {
         journalCount,
+        wellnessIndex,
+        indexCategory,
         latestPHQ9: latestPHQ9 ? latestPHQ9.score : null,
-        latestPHQ9Severity: latestPHQ9 ? latestPHQ9.severity : null,
+        latestPHQ9Severity: latestPHQ9 ? latestPHQ9.severity : 'None',
         latestGAD7: latestGAD7 ? latestGAD7.score : null,
-        latestGAD7Severity: latestGAD7 ? latestGAD7.severity : null,
+        latestGAD7Severity: latestGAD7 ? latestGAD7.severity : 'None',
+        latestPSS10: latestPSS10 ? latestPSS10.score : null,
+        latestPSS10Severity: latestPSS10 ? latestPSS10.severity : 'None',
+        latestWHO5: latestWHO5 ? latestWHO5.score : null,
+        latestWHO5Severity: latestWHO5 ? latestWHO5.severity : 'None',
         latestAssessmentDate: latestPHQ9 ? latestPHQ9.createdAt : (latestGAD7 ? latestGAD7.createdAt : null),
         upcomingAppointments
       },
       phqTrend,
-      gadTrend
+      gadTrend,
+      pssTrend,
+      whoTrend
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

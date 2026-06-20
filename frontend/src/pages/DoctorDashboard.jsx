@@ -1,23 +1,21 @@
 import React, { useEffect, useState, useContext } from 'react';
 import API from '../services/api';
 import StatCard from '../components/StatCard';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import Profile from './Profile';
 import { AuthContext } from '../context/AuthContext';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const DoctorDashboard = () => {
   const { user } = useContext(AuthContext);
   const [stats, setStats] = useState(null);
   const [appointments, setAppointments] = useState([]);
-  const [selectedPatient, setSelectedPatient] = useState(null);
-  const [patientHistory, setPatientHistory] = useState({ phq: [], gad: [], appointments: [] });
-  const [loadingHistory, setLoadingHistory] = useState(false);
-  const [notes, setNotes] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
-  const [actionError, setActionError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [notesText, setNotesText] = useState('');
+  const [recText, setRecText] = useState('');
+  const [followUp, setFollowUp] = useState(false);
+  const [followUpDate, setFollowUpDate] = useState('');
   const [showNotesModal, setShowNotesModal] = useState(false);
-  const [selectedAppIdForComplete, setSelectedAppIdForComplete] = useState(null);
+  const [activeApp, setActiveApp] = useState(null);
 
   const fetchStatsAndSessions = async () => {
     try {
@@ -27,7 +25,7 @@ const DoctorDashboard = () => {
       const appRes = await API.get('/appointments');
       setAppointments(appRes.data);
     } catch (err) {
-      setActionError('Failed to load doctor dashboard stats');
+      setError('Failed to load doctor metrics');
     }
   };
 
@@ -35,335 +33,287 @@ const DoctorDashboard = () => {
     fetchStatsAndSessions();
   }, []);
 
-  const handleSelectPatient = async (patientId, patientName) => {
-    setLoadingHistory(true);
-    setActionError('');
-    try {
-      // Fetch this specific patient's assessments history and past appointment notes
-      // We will read this from the patient's general listings or call specific endpoints
-      const res = await API.get(`/appointments`);
-      // Filter past completed appointments for notes
-      const pastApps = res.data.filter(app => app.studentId?._id === patientId && app.status === 'completed');
-
-      // Fetch assessments for this student
-      // To bypass endpoint limits, we fetch platform metrics or filter patient details safely.
-      // Let's call the search endpoint or filter them out safely
-      setSelectedPatient({ id: patientId, name: patientName });
-      
-      // Let's mock a structured trend for this patient's clinical dashboard since doctors only view assessments they own/have access to
-      setPatientHistory({
-        phq: [
-          { date: 'May 1', score: 14 },
-          { date: 'May 15', score: 11 },
-          { date: 'Jun 1', score: 8 }
-        ],
-        gad: [
-          { date: 'May 1', score: 10 },
-          { date: 'May 15', score: 7 },
-          { date: 'Jun 1', score: 4 }
-        ],
-        appointments: pastApps
-      });
-    } catch (err) {
-      setActionError('Failed to load patient history');
-    } finally {
-      setLoadingHistory(false);
-    }
-  };
-
   const handleApprove = async (id) => {
-    setActionError('');
-    setSuccessMsg('');
     try {
       await API.patch(`/appointments/${id}/approve`);
-      setSuccessMsg('Session approved successfully!');
+      setSuccess('Session approved successfully!');
       fetchStatsAndSessions();
     } catch (err) {
-      setActionError(err.response?.data?.message || 'Failed to approve session');
+      setError('Failed to approve session');
     }
   };
 
   const handleStart = async (id, link) => {
-    setActionError('');
     try {
       await API.patch(`/appointments/${id}/start`);
       window.open(link, '_blank');
       fetchStatsAndSessions();
     } catch (err) {
-      setActionError(err.response?.data?.message || 'Failed to start session');
+      setError('Failed to start session');
     }
   };
 
-  const handleCompletePrompt = (id) => {
-    setSelectedAppIdForComplete(id);
-    setNotes('');
+  const handleCompletePrompt = (app) => {
+    setActiveApp(app);
+    setNotesText('');
+    setRecText('');
+    setFollowUp(false);
+    setFollowUpDate('');
     setShowNotesModal(true);
   };
 
-  const handleCompleteSubmit = async () => {
-    setActionError('');
-    setSuccessMsg('');
+  const handleCompleteSubmit = async (e) => {
+    e.preventDefault();
+    if (!notesText || !recText) {
+      setError('Notes and recommendations are required');
+      return;
+    }
     try {
-      await API.patch(`/appointments/${selectedAppIdForComplete}/complete`, { doctorNotes: notes });
-      setSuccessMsg('Consultation marked as completed!');
+      // Create DoctorNote
+      await API.post('/doctor-notes', {
+        appointmentId: activeApp._id,
+        studentId: activeApp.studentId?._id,
+        notes: notesText,
+        recommendations: recText,
+        followUpRequired: followUp,
+        followUpDate: followUp ? followUpDate : null
+      });
+
+      // Complete Appointment
+      await API.patch(`/appointments/${activeApp._id}/complete`, { doctorNotes: notesText });
+
+      setSuccess('Consultation completed and notes saved!');
       setShowNotesModal(false);
       fetchStatsAndSessions();
     } catch (err) {
-      setActionError(err.response?.data?.message || 'Failed to complete session');
+      setError('Failed to complete session');
     }
   };
 
   const handleCancel = async (id) => {
-    setActionError('');
-    setSuccessMsg('');
     try {
       await API.patch(`/appointments/${id}/cancel`);
-      setSuccessMsg('Session cancelled.');
+      setSuccess('Session cancelled successfully.');
       fetchStatsAndSessions();
     } catch (err) {
-      setActionError(err.response?.data?.message || 'Failed to cancel session');
+      setError('Failed to cancel session');
     }
   };
 
+  // Mock Assigned Students list with clinical data
+  const studentsSummary = [
+    { name: 'Daksh Rathod', phq: '10 (Mild)', gad: '8 (Mild)', pss: '18 (Moderate)', who: '64 (Good)', timeline: 'Jan: 18 → Feb: 15 → Mar: 12 → Apr: 10' },
+    { name: 'Aarav Mehta', phq: '16 (Severe)', gad: '14 (Severe)', pss: '29 (High)', who: '40 (Poor)', timeline: 'Jan: 12 → Feb: 14 → Mar: 15 → Apr: 16' },
+    { name: 'Ananya Iyer', phq: '4 (Minimal)', gad: '3 (Minimal)', pss: '10 (Low)', who: '84 (Good)', timeline: 'Jan: 6 → Feb: 5 → Mar: 4' }
+  ];
+
+  // Recent Student Activities feed
+  const activities = [
+    { title: 'Daksh Rathod completed PHQ-9 Assessment', time: '2 hours ago', badge: 'theme-phq9' },
+    { title: 'Ananya Iyer logged mood "Very Happy"', time: '4 hours ago', badge: 'theme-who5' },
+    { title: 'Daksh Rathod booked a consultation session', time: 'Yesterday', badge: 'theme-appointments' },
+    { title: 'Aarav Mehta completed GAD-7 Assessment', time: 'Yesterday', badge: 'theme-gad7' }
+  ];
+
   return (
     <div style={{ padding: '32px', color: '#0f172a', maxWidth: '1200px', margin: '0 auto' }}>
-      {/* Dashboard Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', borderBottom: '1px solid #e2e8f0', paddingBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <h1 style={{ margin: '0 0 4px 0', fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
-            Doctor Dashboard
-          </h1>
-          <p style={{ color: '#64748b', margin: 0, fontSize: '15px' }}>
-            {activeTab === 'overview' ? 'Manage student bookings and review clinical trend reports.' : 'Configure profile details and availability hours.'}
-          </p>
+      
+      {/* Global Header */}
+      <div style={{ marginBottom: '32px', borderBottom: '1px solid #e2e8f0', paddingBottom: '20px' }}>
+        <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, color: '#f8fafc' }}>
+          Doctor Command Center 🩺
+        </h1>
+        <p style={{ color: '#94a3b8', margin: '4px 0 0 0', fontSize: '15px' }}>
+          Monitor assigned student outcomes, log session notes, and configure availability slots.
+        </p>
+      </div>
+
+      {error && (
+        <div style={{ color: '#ef4444', backgroundColor: '#fef2f2', padding: '16px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #fca5a5' }}>
+          {error}
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button 
-            onClick={() => setActiveTab('overview')}
-            style={{
-              padding: '10px 18px',
-              borderRadius: '12px',
-              border: activeTab === 'overview' ? 'none' : '1px solid #e2e8f0',
-              backgroundColor: activeTab === 'overview' ? '#14b8a6' : '#ffffff',
-              color: activeTab === 'overview' ? '#ffffff' : '#0f172a',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-            }}
-          >
-            📊 Overview
-          </button>
-          <button 
-            onClick={() => setActiveTab('settings')}
-            style={{
-              padding: '10px 18px',
-              borderRadius: '12px',
-              border: activeTab === 'settings' ? 'none' : '1px solid #e2e8f0',
-              backgroundColor: activeTab === 'settings' ? '#14b8a6' : '#ffffff',
-              color: activeTab === 'settings' ? '#ffffff' : '#0f172a',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-            }}
-          >
-            ⚙️ Settings
-          </button>
+      )}
+
+      {success && (
+        <div style={{ color: '#10b981', backgroundColor: '#f0fdf4', padding: '16px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #bbf7d0' }}>
+          {success}
+        </div>
+      )}
+
+      {/* Summary Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+        <div className="bento-card theme-appointments" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px' }}>
+          <h4 style={{ margin: 0, fontSize: '13px', color: '#64748b', fontWeight: 600 }}>Today's Sessions</h4>
+          <div style={{ fontSize: '32px', fontWeight: 800 }}>{stats?.cards?.todayAppointments || 0}</div>
+        </div>
+        <div className="bento-card theme-doctornotes" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px' }}>
+          <h4 style={{ margin: 0, fontSize: '13px', color: '#64748b', fontWeight: 600 }}>This Week's Sessions</h4>
+          <div style={{ fontSize: '32px', fontWeight: 800 }}>{stats?.cards?.upcomingAppointments || 0}</div>
+        </div>
+        <div className="bento-card theme-who5" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px' }}>
+          <h4 style={{ margin: 0, fontSize: '13px', color: '#64748b', fontWeight: 600 }}>Assigned Students</h4>
+          <div style={{ fontSize: '32px', fontWeight: 800 }}>{stats?.cards?.totalPatients || 0}</div>
+        </div>
+        <div className="bento-card theme-notifications" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px' }}>
+          <h4 style={{ margin: 0, fontSize: '13px', color: '#64748b', fontWeight: 600 }}>Pending Reviews</h4>
+          <div style={{ fontSize: '32px', fontWeight: 800 }}>{appointments.filter(app => app.status === 'pending').length}</div>
         </div>
       </div>
 
-      {actionError && (
-        <div style={{ color: '#ef4444', backgroundColor: '#fef2f2', padding: '16px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #fca5a5' }}>
-          {actionError}
-        </div>
-      )}
-
-      {successMsg && (
-        <div style={{ color: '#10b981', backgroundColor: '#f0fdf4', padding: '16px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #bbf7d0' }}>
-          {successMsg}
-        </div>
-      )}
-
-      {activeTab === 'settings' ? (
+      {/* Main Grid: Upcoming Bookings & Recent Student Activity Feed */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+        
+        {/* Session Bookings list */}
         <div className="bento-card">
-          <Profile />
-        </div>
-      ) : (
-        <>
-          {stats && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '-12px', marginBottom: '12px' }}>
-              <StatCard title="Today's Sessions" value={stats.cards.todayAppointments} icon="📅" color="#14b8a6" />
-              <StatCard title="Upcoming Sessions" value={stats.cards.upcomingAppointments} icon="🩺" color="#6366f1" />
-              <StatCard title="Assigned Students" value={stats.cards.totalPatients} icon="👥" color="#f97316" />
-              <StatCard title="Consultation Fee" value={`$${user?.doctorProfile?.fee || stats.cards.averageRating}`} icon="💵" color="#8b5cf6" />
-              <StatCard title="Average Rating" value={`${stats.cards.averageRating || 0} ⭐`} icon="⭐" color="#eab308" />
-            </div>
-          )}
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px', marginTop: '24px' }}>
-            
-            {/* Today's / Upcoming Sessions Bento Card */}
-            <div className="bento-card">
-              <h3 style={{ margin: '0 0 16px 0', fontSize: '17px', fontWeight: 700 }}>Upcoming Session Bookings</h3>
-              {appointments.length === 0 ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>No scheduled sessions</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {appointments.map(app => (
-                    <div key={app._id} style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <div>
-                          <strong style={{ fontSize: '15px' }}>{app.studentId?.firstName} {app.studentId?.lastName}</strong>
-                          <div style={{ fontSize: '12px', color: '#64748b' }}>
-                            📅 {new Date(app.scheduledDate).toLocaleDateString()} | ⏰ {app.scheduledTime}
-                          </div>
-                        </div>
-                        <span style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          padding: '2px 10px',
-                          borderRadius: '9999px',
-                          textTransform: 'capitalize',
-                          backgroundColor: app.status === 'approved' ? '#dcfce7' : (app.status === 'pending' ? '#fef3c7' : '#e2e8f0'),
-                          color: app.status === 'approved' ? '#15803d' : (app.status === 'pending' ? '#b45309' : '#475569')
-                        }}>{app.status}</span>
-                      </div>
-
-                      {/* Clinical Actions */}
-                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
-                        <button 
-                          onClick={() => handleSelectPatient(app.studentId?._id, `${app.studentId?.firstName} ${app.studentId?.lastName}`)}
-                          className="btn-secondary" 
-                          style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px' }}
-                        >
-                          📈 View Clinical History
-                        </button>
-                        
-                        {app.status === 'pending' && (
-                          <>
-                            <button 
-                              onClick={() => handleApprove(app._id)}
-                              className="btn-primary" 
-                              style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', backgroundColor: '#10b981' }}
-                            >
-                              Approve
-                            </button>
-                            <button 
-                              onClick={() => handleCancel(app._id)}
-                              className="btn-secondary" 
-                              style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', color: '#ef4444', borderColor: '#fca5a5' }}
-                            >
-                              Decline
-                            </button>
-                          </>
-                        )}
-
-                        {app.status === 'approved' && app.meetingLink && (
-                          <button 
-                            onClick={() => handleStart(app._id, app.meetingLink)}
-                            className="btn-primary" 
-                            style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', backgroundColor: '#14b8a6' }}
-                          >
-                            🚀 Start Consultation
-                          </button>
-                        )}
-
-                        {app.status === 'in_progress' && (
-                          <button 
-                            onClick={() => handleCompletePrompt(app._id)}
-                            className="btn-primary" 
-                            style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', backgroundColor: '#6366f1' }}
-                          >
-                            ✔️ Complete Session
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Selected Patient Clinical Timelines */}
-            <div className="bento-card">
-              <h3 style={{ margin: '0 0 4px 0', fontSize: '17px', fontWeight: 700 }}>Patient Clinical Wellness Dashboard</h3>
-              {selectedPatient ? (
-                loadingHistory ? (
-                  <div style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>Loading history...</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '16px' }}>
-                    <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
-                      <strong>Patient Name:</strong> {selectedPatient.name}
-                      <p style={{ fontSize: '11px', color: '#f97316', marginTop: '2px', fontWeight: 600 }}>🔒 Privacy Guard Active: Student personal wellness journals are private and hidden.</p>
-                    </div>
-
-                    {/* Recharts chart representing patient severity changes */}
-                    <div style={{ height: '180px' }}>
-                      <h4 style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px' }}>Patient Severity Assessment Trends</h4>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis dataKey="date" stroke="#94a3b8" fontSize={10} allowDuplicatedCategory={false} />
-                          <YAxis stroke="#94a3b8" fontSize={10} />
-                          <Tooltip />
-                          <Line name="PHQ-9" type="monotone" data={patientHistory.phq} dataKey="score" stroke="#14b8a6" strokeWidth={2} />
-                          <Line name="GAD-7" type="monotone" data={patientHistory.gad} dataKey="score" stroke="#6366f1" strokeWidth={2} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    {/* Past Consultation Sessions List */}
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Upcoming Session Bookings</h3>
+          {appointments.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>No upcoming sessions scheduled</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {appointments.map(app => (
+                <div key={app._id} style={{ border: '1px solid #e2e8f0', padding: '16px', borderRadius: '16px', backgroundColor: '#f8fafc' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                     <div>
-                      <h4 style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px' }}>Past Appointment Notes History</h4>
-                      {patientHistory.appointments.length === 0 ? (
-                        <div style={{ fontSize: '12px', color: '#94a3b8' }}>No past session records</div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '160px', overflowY: 'auto' }}>
-                          {patientHistory.appointments.map(app => (
-                            <div key={app._id} style={{ fontSize: '12px', border: '1px solid #f1f5f9', padding: '10px', borderRadius: '10px', backgroundColor: '#f8fafc' }}>
-                              <strong>📅 Session:</strong> {new Date(app.scheduledDate).toLocaleDateString()}
-                              <p style={{ margin: '4px 0 0 0', color: '#475569' }}><strong>Doctor Notes:</strong> {app.doctorNotes || 'No notes saved'}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <strong style={{ fontSize: '14px' }}>{app.studentId?.firstName} {app.studentId?.lastName}</strong>
+                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                        📅 {new Date(app.scheduledDate).toLocaleDateString()} | ⏰ {app.scheduledTime}
+                      </div>
                     </div>
+                    <span className="status-badge status-available" style={{ textTransform: 'capitalize' }}>{app.status}</span>
                   </div>
-                )
-              ) : (
-                <div style={{ display: 'flex', height: '80%', alignItems: 'center', justifyContent: 'center', color: '#64748b', textAlign: 'center', padding: '40px 0' }}>
-                  Select "View Clinical History" next to any patient record to display trend charts.
+                  
+                  {/* Doctor actions based on status */}
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+                    {app.status === 'pending' && (
+                      <>
+                        <button onClick={() => handleApprove(app._id)} className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', backgroundColor: '#10b981' }}>Approve</button>
+                        <button onClick={() => handleCancel(app._id)} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', color: '#ef4444' }}>Decline</button>
+                      </>
+                    )}
+                    {app.status === 'approved' && app.meetingLink && (
+                      <button onClick={() => handleStart(app._id, app.meetingLink)} className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', backgroundColor: '#14b8a6' }}>Start Session</button>
+                    )}
+                    {app.status === 'in_progress' && (
+                      <button onClick={() => handleCompletePrompt(app)} className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', backgroundColor: '#4f46e5' }}>Log Outcomes</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Student activity feed */}
+        <div className="bento-card">
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Recent Student Activity</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {activities.map((act, index) => (
+              <div key={index} className={`bento-card ${act.badge}`} style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', color: '#0f172a', fontWeight: 500 }}>{act.title}</span>
+                <span style={{ fontSize: '11px', color: '#64748b' }}>{act.time}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+
+      {/* Student Health Summary table */}
+      <div className="bento-card">
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Assigned Students Wellness Summary</h3>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #cbd5e1', color: '#64748b' }}>
+              <th style={{ padding: '12px 8px' }}>Student</th>
+              <th style={{ padding: '12px 8px' }}>PHQ-9 (Depression)</th>
+              <th style={{ padding: '12px 8px' }}>GAD-7 (Anxiety)</th>
+              <th style={{ padding: '12px 8px' }}>PSS-10 (Stress)</th>
+              <th style={{ padding: '12px 8px' }}>WHO-5 (Well-being)</th>
+              <th style={{ padding: '12px 8px' }}>Assessment Timeline</th>
+            </tr>
+          </thead>
+          <tbody>
+            {studentsSummary.map((std, index) => (
+              <tr key={index} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <td style={{ padding: '12px 8px', fontWeight: 600 }}>{std.name}</td>
+                <td style={{ padding: '12px 8px' }}>{std.phq}</td>
+                <td style={{ padding: '12px 8px' }}>{std.gad}</td>
+                <td style={{ padding: '12px 8px' }}>{std.pss}</td>
+                <td style={{ padding: '12px 8px' }}>{std.who}</td>
+                <td style={{ padding: '12px 8px', color: '#64748b', fontStyle: 'italic' }}>{std.timeline}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Complete Session and Log Notes Modal */}
+      {showNotesModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(15,23,42,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <form onSubmit={handleCompleteSubmit} style={{ backgroundColor: '#ffffff', padding: '32px', borderRadius: '24px', width: '90%', maxWidth: '520px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 800 }}>Save Session Outcomes & Notes</h3>
+            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px' }}>Log session diagnosis notes and rule recommendations.</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+              <div>
+                <label style={{ display: 'block', color: '#64748b', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Clinical Session Notes</label>
+                <textarea 
+                  value={notesText} 
+                  onChange={(e) => setNotesText(e.target.value)} 
+                  required 
+                  rows="3"
+                  placeholder="Student experiencing exam anxiety..."
+                  style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', color: '#64748b', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Recommendations</label>
+                <textarea 
+                  value={recText} 
+                  onChange={(e) => setRecText(e.target.value)} 
+                  required 
+                  rows="2"
+                  placeholder="Weekly meditation check-ins."
+                  style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input 
+                  type="checkbox" 
+                  checked={followUp} 
+                  onChange={(e) => setFollowUp(e.target.checked)} 
+                  id="followUp"
+                />
+                <label htmlFor="followUp" style={{ fontSize: '13px', fontWeight: 600 }}>Follow-up Consultation Required</label>
+              </div>
+
+              {followUp && (
+                <div>
+                  <label style={{ display: 'block', color: '#64748b', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Follow-up Date</label>
+                  <input 
+                    type="date" 
+                    value={followUpDate} 
+                    onChange={(e) => setFollowUpDate(e.target.value)} 
+                    required 
+                    style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none' }}
+                  />
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Modal to complete session with notes */}
-          {showNotesModal && (
-            <div style={{
-              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: 'rgba(15,23,42,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-            }}>
-              <div style={{ backgroundColor: '#ffffff', padding: '28px', borderRadius: '20px', width: '90%', maxWidth: '480px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-                <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 700 }}>Complete Consultation Session</h3>
-                <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>Provide optional clinical summaries or advice for the student.</p>
-                <textarea 
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Enter medical/counseling notes..."
-                  rows="5"
-                  style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #cbd5e1', outline: 'none', resize: 'vertical', fontFamily: 'inherit', fontSize: '14px', marginBottom: '20px' }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <button onClick={() => setShowNotesModal(false)} className="btn-secondary" style={{ padding: '8px 16px', borderRadius: '10px' }}>Cancel</button>
-                  <button onClick={handleCompleteSubmit} className="btn-primary" style={{ padding: '8px 16px', borderRadius: '10px' }}>Complete Session</button>
-                </div>
-              </div>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setShowNotesModal(false)} className="btn-secondary">Cancel</button>
+              <button type="submit" className="btn-primary" style={{ backgroundColor: '#4f46e5' }}>Save notes & complete</button>
             </div>
-          )}
-        </>
+          </form>
+        </div>
       )}
+
     </div>
   );
 };

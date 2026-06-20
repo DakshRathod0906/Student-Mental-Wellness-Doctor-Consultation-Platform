@@ -8,7 +8,7 @@ const AssessmentSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['PHQ9', 'GAD7'],
+    enum: ['PHQ9', 'GAD7', 'PSS10', 'WHO5'],
     required: true
   },
   answers: {
@@ -24,6 +24,10 @@ const AssessmentSchema = new mongoose.Schema({
     required: true
   },
   interpretation: {
+    type: String,
+    required: true
+  },
+  recommendation: {
     type: String,
     required: true
   }
