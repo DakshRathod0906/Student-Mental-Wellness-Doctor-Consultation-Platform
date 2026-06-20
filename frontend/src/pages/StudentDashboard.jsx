@@ -39,14 +39,14 @@ const StudentDashboard = () => {
 
   // Determine Wellness Status based on latest assessment scores
   const getWellnessStatus = (phq, gad) => {
-    if (phq === null && gad === null) return { status: 'Unknown', color: '#94a3b8' };
+    if (phq === null && gad === null) return { status: 'Evaluating', color: '#6366f1', text: 'Take an assessment to see your status.' };
     const maxScore = Math.max(phq || 0, gad || 0);
-    if (phq >= 15 || gad >= 15) return { status: 'High Priority', color: '#ef4444' };
-    if (phq >= 10 || gad >= 10) return { status: 'Needs Attention', color: '#f97316' };
-    return { status: 'Stable', color: '#10b981' };
+    if (phq >= 15 || gad >= 15) return { status: 'High Priority', color: '#ef4444', text: 'We recommend scheduling a consultation soon.' };
+    if (phq >= 10 || gad >= 10) return { status: 'Needs Attention', color: '#f97316', text: 'A quick talk with our counselor might help.' };
+    return { status: 'Stable', color: '#10b981', text: 'You are doing great! Keep up your healthy habits.' };
   };
 
-  const wellness = data?.cards ? getWellnessStatus(data.cards.latestPHQ9, data.cards.latestGAD7) : { status: 'Unknown', color: '#94a3b8' };
+  const wellness = data?.cards ? getWellnessStatus(data.cards.latestPHQ9, data.cards.latestGAD7) : { status: 'Evaluating', color: '#6366f1', text: 'Pending assessment.' };
 
   // Check if assessment was completed in last 14 days
   const hasAssessmentIn14Days = () => {
@@ -75,41 +75,24 @@ const StudentDashboard = () => {
     { title: "Mindfulness and Breathing", category: "Anxiety", readTime: "4 min", icon: "🧘" }
   ];
 
+  const moodDetails = [
+    { emoji: '😊', label: 'Happy', color: '#f0fdf4', border: '#10b981' },
+    { emoji: '😐', label: 'Neutral', color: '#f8fafc', border: '#94a3b8' },
+    { emoji: '😔', label: 'Sad', color: '#eff6ff', border: '#3b82f6' },
+    { emoji: '😟', label: 'Worried', color: '#fffbeb', border: '#f59e0b' },
+    { emoji: '😴', label: 'Tired', color: '#faf5ff', border: '#8b5cf6' }
+  ];
+
   return (
     <div style={{ padding: '32px', color: '#0f172a', maxWidth: '1200px', margin: '0 auto' }}>
+      
       {/* Dashboard Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', borderBottom: '1px solid #e2e8f0', paddingBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ margin: '0 0 4px 0', fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
-            Welcome back, {user?.firstName} 🌿
+            Hello, {user?.firstName} 👋
           </h1>
-          {activeTab === 'overview' && data?.cards && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginTop: '8px' }}>
-              <span style={{ fontSize: '14px', color: '#64748b' }}>Wellness Status:</span>
-              <span style={{
-                backgroundColor: `${wellness.color}15`,
-                color: wellness.color,
-                padding: '4px 12px',
-                borderRadius: '9999px',
-                fontSize: '13px',
-                fontWeight: 700
-              }}>
-                {wellness.status}
-              </span>
-              <span style={{ color: '#cbd5e1' }}>|</span>
-              <span style={{ fontSize: '13px', color: '#475569' }}>
-                PHQ-9: <strong style={{ color: '#0f172a' }}>{data.cards.latestPHQ9Severity || 'None'}</strong>
-              </span>
-              <span style={{ color: '#cbd5e1' }}>|</span>
-              <span style={{ fontSize: '13px', color: '#475569' }}>
-                GAD-7: <strong style={{ color: '#0f172a' }}>{data.cards.latestGAD7Severity || 'None'}</strong>
-              </span>
-              <span style={{ color: '#cbd5e1' }}>|</span>
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                Last Updated: {data.cards.latestAssessmentDate ? new Date(data.cards.latestAssessmentDate).toLocaleDateString() : 'Never'}
-              </span>
-            </div>
-          )}
+          <p style={{ color: '#64748b', margin: 0, fontSize: '15px' }}>How are you feeling today?</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button 
@@ -216,46 +199,77 @@ const StudentDashboard = () => {
             )}
           </div>
 
-          {/* Welcome & Mood Selector Bento Panel */}
-          <div className="bento-card" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
-            <div>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 4px 0', color: '#0f172a' }}>How are you feeling today?</h3>
-              <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>Select your mood to log a daily check-in.</p>
-            </div>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              {['😊', '😐', '😔', '😟', '😴'].map(mood => (
-                <button
-                  key={mood}
-                  onClick={() => handleMoodSelect(mood)}
-                  style={{
-                    fontSize: '28px',
-                    background: 'none',
-                    border: selectedMood === mood ? '2px solid #14b8a6' : '1px solid #e2e8f0',
-                    borderRadius: '50%',
-                    width: '54px',
-                    height: '54px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: selectedMood === mood ? '#f0fdfa' : '#ffffff',
-                    transition: 'all 0.2s',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'scale(1.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
-                >
-                  {mood}
-                </button>
-              ))}
-              {moodSuccess && (
-                <span style={{ fontSize: '13px', color: '#10b981', fontWeight: 600, marginLeft: '8px' }}>Saved!</span>
+          {/* Premium Hero Info & Mood Tracker Panel */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+            
+            {/* Wellness Status Bento Card */}
+            <div className="bento-card" style={{
+              background: 'linear-gradient(135deg, #f0fdfa 0%, #e6fffa 100%)',
+              border: '1px solid #14b8a633',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              minHeight: '200px'
+            }}>
+              <div>
+                <span style={{ fontSize: '12px', color: '#14b8a6', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Wellness Snapshot</span>
+                <h3 style={{ fontSize: '26px', fontWeight: 800, margin: '8px 0 2px 0', color: '#0f172a' }}>
+                  Status: <span style={{ color: wellness.color }}>{wellness.status}</span>
+                </h3>
+                <p style={{ color: '#475569', fontSize: '13px', margin: '4px 0 16px 0', lineHeight: 1.4 }}>{wellness.text}</p>
+              </div>
+
+              {data?.cards && (
+                <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#64748b', borderTop: '1px solid #14b8a615', paddingTop: '12px' }}>
+                  <div>PHQ-9: <strong style={{ color: '#0f172a' }}>{data.cards.latestPHQ9Severity || 'None'}</strong></div>
+                  <div>GAD-7: <strong style={{ color: '#0f172a' }}>{data.cards.latestGAD7Severity || 'None'}</strong></div>
+                  <div>Last Updated: <strong style={{ color: '#0f172a' }}>{data.cards.latestAssessmentDate ? new Date(data.cards.latestAssessmentDate).toLocaleDateString() : 'Never'}</strong></div>
+                </div>
               )}
             </div>
+
+            {/* Interactive Mood Tracker Bento Card */}
+            <div className="bento-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '200px' }}>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 4px 0', color: '#0f172a' }}>Daily Mood Tracker</h3>
+                <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 16px 0' }}>Log your current emotional state in one click.</p>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>
+                {moodDetails.map(m => (
+                  <button
+                    key={m.label}
+                    onClick={() => handleMoodSelect(m.emoji)}
+                    style={{
+                      border: selectedMood === m.emoji ? `2px solid ${m.border}` : '1px solid #e2e8f0',
+                      borderRadius: '16px',
+                      flex: 1,
+                      padding: '8px 4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      backgroundColor: selectedMood === m.emoji ? m.color : '#ffffff',
+                      transition: 'all 0.2s',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.01)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <span style={{ fontSize: '24px', marginBottom: '4px' }}>{m.emoji}</span>
+                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>{m.label}</span>
+                  </button>
+                ))}
+              </div>
+              {moodSuccess && (
+                <div style={{ fontSize: '11px', color: '#10b981', fontWeight: 600, textAlign: 'center', marginTop: '6px' }}>Check-in logged!</div>
+              )}
+            </div>
+
           </div>
 
           {/* Stats Cards Bento Row */}
@@ -357,8 +371,47 @@ const StudentDashboard = () => {
             </div>
           </div>
 
-          {/* Bottom Bento Row: Self-care Resources & Hotline */}
+          {/* Bottom Bento Row: Self-care Checklist & Hotline */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+            
+            {/* Self-care Activity Progress (Inspired by Mindo Active Path) */}
+            <div className="bento-card">
+              <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>Self-Care Active Path</h3>
+              <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 16px 0' }}>Track your weekly wellness progress habits.</p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '6px' }}>
+                    <strong>🧘 Meditation</strong>
+                    <span style={{ color: '#14b8a6', fontWeight: 600 }}>50% Complete</span>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', backgroundColor: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: '50%', height: '100%', backgroundColor: '#14b8a6', borderRadius: '4px' }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '6px' }}>
+                    <strong>📝 Journaling</strong>
+                    <span style={{ color: '#6366f1', fontWeight: 600 }}>85% Complete</span>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', backgroundColor: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: '85%', height: '100%', backgroundColor: '#6366f1', borderRadius: '4px' }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '6px' }}>
+                    <strong>🏃 Physical Activity</strong>
+                    <span style={{ color: '#f97316', fontWeight: 600 }}>60% Complete</span>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', backgroundColor: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: '60%', height: '100%', backgroundColor: '#f97316', borderRadius: '4px' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Resources list */}
             <div className="bento-card">
               <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>Mental Wellness Guides</h3>
@@ -402,25 +455,16 @@ const StudentDashboard = () => {
               </div>
             </div>
 
-            {/* Emergency Hotline Support */}
-            <div className="bento-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: '#fef2f2', border: '1px solid #fca5a5' }}>
-              <div>
-                <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 700, color: '#991b1b' }}>🛟 Need Immediate Support?</h3>
-                <p style={{ fontSize: '14px', color: '#7f1d1d', margin: '0 0 20px 0', lineHeight: 1.4 }}>
-                  If you are in distress or need to speak with someone urgently, we are here for you. Professional, confidential support is available 24/7.
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px', color: '#991b1b' }}>
-                  <div>📞 <strong>Campus Helpline:</strong> +1 (800) 273-TALK</div>
-                  <div>💬 <strong>Crisis Chat:</strong> Text HOME to 741741</div>
-                </div>
-              </div>
-              <button 
-                onClick={() => window.open('tel:18002738255')}
-                className="btn-primary" 
-                style={{ width: '100%', padding: '12px', backgroundColor: '#ef4444', color: '#ffffff', marginTop: '16px' }}
-              >
-                Call Support Helpline
-              </button>
+          </div>
+
+          {/* Hotline section */}
+          <div className="bento-card" style={{ marginTop: '24px', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: 700, color: '#991b1b' }}>🛟 Need Immediate Support?</h3>
+              <p style={{ fontSize: '13px', color: '#7f1d1d', margin: 0 }}>Campus Helplines and crisis chat channels are free, confidential, and active 24/7.</p>
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => window.open('tel:18002738255')} className="btn-primary" style={{ backgroundColor: '#ef4444' }}>📞 Call Campus Line</button>
             </div>
           </div>
         </>
