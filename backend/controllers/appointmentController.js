@@ -4,6 +4,25 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const crypto = require('crypto');
 
+// Helper to convert 12-hour AM/PM to 24-hour HH:MM format
+const convertTo24Hour = (timeStr) => {
+  if (!timeStr) return '';
+  if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(timeStr)) {
+    return timeStr;
+  }
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return timeStr;
+  
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  const ampm = match[3].toUpperCase();
+  
+  if (ampm === 'PM' && hours < 12) hours += 12;
+  if (ampm === 'AM' && hours === 12) hours = 0;
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes}`;
+};
+
 // Helper to check if time falls within availability range
 const isTimeWithinRange = (time, start, end) => {
   const [tHour, tMin] = time.split(':').map(Number);
@@ -22,11 +41,14 @@ const isTimeWithinRange = (time, start, end) => {
 // @access  Private (Student)
 const createAppointment = async (req, res) => {
   try {
-    const { doctorId, scheduledDate, scheduledTime, duration } = req.body;
+    let { doctorId, scheduledDate, scheduledTime, duration } = req.body;
 
     if (!doctorId || !scheduledDate || !scheduledTime) {
       return res.status(400).json({ message: 'DoctorId, scheduledDate, and scheduledTime are required' });
     }
+
+    // Normalize scheduledTime format
+    scheduledTime = convertTo24Hour(scheduledTime);
 
     // Verify doctor exists and has role = doctor
     const doctor = await User.findById(doctorId);
