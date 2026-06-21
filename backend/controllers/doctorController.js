@@ -10,8 +10,7 @@ const getDoctors = async (req, res) => {
     const { search, specialization, sort, page = 1, limit = 10 } = req.query;
 
     const query = {
-      role: 'doctor',
-      isProfileComplete: true
+      role: 'doctor'
     };
 
     // Filter by Specialization
@@ -138,9 +137,29 @@ const updateDoctorProfile = async (req, res) => {
   }
 };
 
+// @desc    Verify/Approve doctor profile (Admin only)
+// @route   PATCH /api/doctors/:id/verify
+// @access  Private (Admin)
+const verifyDoctor = async (req, res) => {
+  try {
+    const doctor = await User.findById(req.params.id);
+    if (!doctor || doctor.role !== 'doctor') {
+      return res.status(404).json({ message: 'Doctor not found' });
+    }
+
+    doctor.isVerified = !doctor.isVerified;
+    await doctor.save();
+
+    res.json({ message: `Doctor verification status updated`, isVerified: doctor.isVerified, doctor });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getDoctors,
   getFeaturedDoctors,
   getDoctorById,
-  updateDoctorProfile
+  updateDoctorProfile,
+  verifyDoctor
 };
