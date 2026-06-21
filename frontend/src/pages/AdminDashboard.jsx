@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import API from '../services/api';
 import StatCard from '../components/StatCard';
 import { useSearchParams } from 'react-router-dom';
+import EmailCenter from '../components/EmailCenter';
 import { 
   ResponsiveContainer, 
   PieChart, 
@@ -30,6 +31,15 @@ const AdminDashboard = () => {
   const [assessments, setAssessments] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+
+  const handleToggleVerify = async (doctorId) => {
+    try {
+      await API.patch(`/doctors/${doctorId}/verify`);
+      setUsers(prevUsers => prevUsers.map(u => u._id === doctorId ? { ...u, isVerified: !u.isVerified } : u));
+    } catch (err) {
+      alert('Failed to update doctor verification status');
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -222,6 +232,7 @@ const AdminDashboard = () => {
                 <th style={{ padding: '12px 8px' }}>Doctor</th>
                 <th style={{ padding: '12px 8px' }}>Email</th>
                 <th style={{ padding: '12px 8px' }}>Verification Status</th>
+                <th style={{ padding: '12px 8px', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -230,7 +241,30 @@ const AdminDashboard = () => {
                   <td style={{ padding: '12px 8px', fontWeight: 600 }}>{doc.firstName} {doc.lastName}</td>
                   <td style={{ padding: '12px 8px' }}>{doc.email}</td>
                   <td style={{ padding: '12px 8px' }}>
-                    <span className="status-badge status-available">Verified</span>
+                    <span 
+                      className={`status-badge ${doc.isVerified ? 'status-available' : 'status-booked'}`}
+                      style={{ fontSize: '11px' }}
+                    >
+                      {doc.isVerified ? 'Verified' : 'Pending Verification'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>
+                    <button
+                      onClick={() => handleToggleVerify(doc._id)}
+                      className="btn-primary"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        backgroundColor: doc.isVerified ? '#ef4444' : '#10b981',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: '#ffffff',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {doc.isVerified ? 'Revoke Approval' : 'Approve Doctor'}
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -347,6 +381,13 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Email Center Tab */}
+      {tab === 'emails' && (
+        <div className="bento-card" style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '20px' }}>
+          <EmailCenter />
         </div>
       )}
 
