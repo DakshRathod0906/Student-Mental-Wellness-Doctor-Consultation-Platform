@@ -33,6 +33,7 @@ const Sidebar = () => {
       { path: '/dashboard/admin?tab=appointments', label: '📅 Appointments' },
       { path: '/dashboard/admin?tab=assessments', label: '🗂️ Assessments' },
       { path: '/dashboard/admin?tab=analytics', label: '📈 Analytics' },
+      { path: '/dashboard/admin?tab=emails', label: '✉️ Email Center' },
       { path: '/settings', label: '⚙️ Settings' }
     ]
   };
